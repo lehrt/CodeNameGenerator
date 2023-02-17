@@ -1,20 +1,16 @@
 import time
+import json
 from selenium import webdriver
-from selenium.webdriver.edge.service import Service
-from selenium.webdriver.edge.options import Options
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.select import Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-
-
 
 driver = webdriver.Edge()
 wait = WebDriverWait(driver, 10)
 adjectives = []
 nouns = []
-
+out_file_noun = open("nouns.json", "w")
+out_file_adj = open("adjectives.json", "w")
 
 def get_started():
     """
@@ -27,12 +23,21 @@ def get_started():
 
 def increase_page_number(page_number):
     """
-    increase page number
+    Increase page number
     """
     element = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, 'small')))
     element.clear()
     element.send_keys(page_number)
 
+def pull_out_definition(source_text):
+    definition = source_text.split(">")[6][:-6]
+    return definition
+    # definitions_list = raw_definition.split('"')
+    # actual_definition = []
+    # for i in len(definitions_list):
+    #     if definitions_list[i]%2 == 1:
+
+    # split at '"', for each odd numbered index, concat by ", "
 
 def check_if_relevant():
     """
@@ -43,32 +48,18 @@ def check_if_relevant():
     type = source_text.split("<")[2]
     specific_word = type.split('"')[1]
     specific_word = specific_word[:-3]
+    definition = pull_out_definition(source_text)
     if "(n)" in type:
-        print (f"{specific_word} is a noun")
-        nouns.append(specific_word)
+        print (f"{specific_word} is a noun. Adding it to noun json file")
+        nouns.append((specific_word, definition))
     elif "(a)" in type:
-        print (f"{specific_word} is an adjective")
-        adjectives.append(specific_word)
+        print (f"{specific_word} is an adjective. Adding it to adjective json file")
+        adjectives.append((specific_word, definition))
 
 def find_source_encoding():
+    """ Abstracting out logic to open source encoding tab """
     source_encoding = wait.until(EC.element_to_be_clickable((By.ID, 'source-encoding')))
     source_encoding.click()
-
-def scrape_lexicon():
-    """
-    Work actually happens here.
-    """
-    get_started()
-    iterate_through_items_on_first_page()
-    for i in range(10, 15):
-        print(f"Page {i}")
-        increase_page_number(i)
-        time.sleep(.5)
-        iterate_though_items_on_all_other_pages()
-    print(nouns)
-    print(adjectives)
-    time.sleep(20)
-
 
 def iterate_through_items_on_first_page():
     """
@@ -91,9 +82,35 @@ def iterate_though_items_on_all_other_pages():
     for i in range(3, amount_of_words):
         try:
             if driver.find_element(By.XPATH, f'//*[@id="lex-fulltext"]/div/div[3]/div[{i}]/a'):
-                word = wait.until(EC.element_to_be_clickable((By.XPATH, f'//*[@id="lex-fulltext"]/div/div[3]/div[{i}]/a')))
-                text = word.text
+                word = wait.until(EC.element_to_be_clickable((By.XPATH, f'//*[@id="lex-fulltext"]/div/div[3]/div[{i}]/a')))                                  
                 word.click()
                 check_if_relevant()
-        except Exception as e:
+        except Exception:
             continue
+
+def json_dump():
+    """ Should be dumping our adj and noun lists into a json file """
+    json.dump(nouns, out_file_noun, indent = 6)
+    json.dump(adjectives, out_file_adj, indent = 6)
+    # out_file_noun.close()
+    # out_file_adj.close()
+
+def scrape_lexicon():
+    """
+    Work actually happens here.
+    """
+    get_started()
+    iterate_through_items_on_first_page()
+    for i in range(10, 131):
+        increase_page_number(i)
+        time.sleep(.5)
+        iterate_though_items_on_all_other_pages()
+    time.sleep(20)
+
+
+## TODO: parse the definitions out, too
+
+## TODO: Host!!!!
+
+scrape_lexicon()
+json_dump()
